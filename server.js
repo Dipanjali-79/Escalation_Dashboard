@@ -15,11 +15,6 @@ app.use(express.json());
 app.use(express.static('public'));
 
 
-// Database Connection
-mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log('MongoDB Connected'))
-    .catch(err => console.log(err));
-
 // Routes
 // Get all escalations
 app.get('/api/escalations', async (req, res) => {
@@ -53,5 +48,24 @@ app.delete('/api/escalations/:id', async (req, res) => {
     }
 });
 
-// Start Server
-app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
+// Database Connection & Server Start
+const startServer = async () => {
+    try {
+        console.log('Connecting to MongoDB...');
+        await mongoose.connect(process.env.MONGO_URI);
+        console.log('✅ MongoDB Connected');
+
+        app.listen(PORT, '0.0.0.0', () => {
+            console.log(`🚀 Server running on port ${PORT}`);
+        });
+    } catch (err) {
+        console.error('❌ MongoDB Connection Error:', err.message);
+        console.error('Please ensure your IP is whitelisted in MongoDB Atlas (0.0.0.0/0 for Render).');
+        // Still listen so Render doesn't fail the port check, but log the error
+        app.listen(PORT, '0.0.0.0', () => {
+            console.log(`🚀 Server running on port ${PORT} (Wait: MongoDB not connected)`);
+        });
+    }
+};
+
+startServer();
