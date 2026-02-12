@@ -1,4 +1,4 @@
-const API_URL = `${window.location.protocol}//${window.location.host}/api/escalations`;
+const API_URL = '/api/escalations';
 
 // State
 const CONFIG = {
@@ -117,15 +117,25 @@ async function loadData() {
 }
 
 async function createEscalation(data) {
-    const response = await fetch(API_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
-    });
-    if (!response.ok) throw new Error('Failed to create escalation');
-    return await response.json();
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({ message: 'Unknown server error' }));
+            throw new Error(err.message || `Server error: ${response.status}`);
+        }
+        return await response.json();
+    } catch (error) {
+        if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+            throw new Error('Could not connect to the server. Please ensure the backend is running.');
+        }
+        throw error;
+    }
 }
 
 async function saveEntry() {
@@ -156,7 +166,7 @@ async function saveEntry() {
 
     } catch (error) {
         console.error("Error saving data:", error);
-        showToast("Error saving data", "error");
+        showToast(`Save failed: ${error.message}`, "error");
     }
 }
 
