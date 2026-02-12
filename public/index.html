@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Escalation Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -959,7 +960,7 @@
                                 <option value="6-10">6 - 10 Days</option>
                                 <option value="11+">&gt; 10 Days</option>
                             </select>
-                            <input type="file" id="csvFileInput" accept=".csv" class="hidden"
+                            <input type="file" id="csvFileInput" accept=".csv, .xlsx, .xls" class="hidden"
                                 onchange="handleImport(this)">
                             <button class="btn-sm" onclick="document.getElementById('csvFileInput').click()">📤
                                 Import</button>
@@ -976,9 +977,9 @@
                                     <th>ID</th>
                                     <th>Branch</th>
                                     <th>Brand</th>
-                                    <th>Reason</th>
                                     <th>Aging (Days)</th>
                                     <th>Status</th>
+                                    <th>Reason</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
