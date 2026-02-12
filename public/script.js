@@ -3,7 +3,7 @@ const API_URL = '/api/escalations';
 // State
 const CONFIG = {
     branches: ["BLR", "AP", "CHN", "DELHI", "HYD", "MP", "MUM_THN", "PUNE", "RAJ", "RO KAR", "RO TEL", "RO TN", "ROM", "UP (EAST)", "UP (WEST)", "UP", "WB"],
-    storageKey: "escalation_dashboard_pro_v1" // Keeping for auth, though data is now in DB
+    storageKey: "escalation_dashboard_v1" // Keeping for auth, though data is now in DB
 };
 let appState = {
     user: null,
