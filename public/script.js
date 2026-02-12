@@ -234,8 +234,22 @@ function editRow(id) {
     openModal();
 }
 
-function confirmClear() {
-    showToast("Clear all not supported in server mode for safety", "info");
+async function confirmClear() {
+    if (confirm("CRITICAL: Are you sure you want to DELETE ALL records from the database? This cannot be undone.")) {
+        try {
+            const response = await fetch(`${API_URL}/all`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) throw new Error('Failed to clear data');
+
+            showToast("All data cleared successfully", "success");
+            loadData();
+        } catch (error) {
+            console.error("Error clearing data:", error);
+            showToast("Error clearing data: " + error.message, "error");
+        }
+    }
 }
 
 // Import Functions

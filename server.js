@@ -56,6 +56,10 @@ app.put('/api/escalations/:id', async (req, res) => {
 // Delete an escalation
 app.delete('/api/escalations/:id', async (req, res) => {
     try {
+        if (req.params.id === 'all') {
+            await Escalation.deleteMany({});
+            return res.json({ message: 'All escalations deleted' });
+        }
         await Escalation.findByIdAndDelete(req.params.id);
         res.json({ message: 'Escalation deleted' });
     } catch (err) {
