@@ -138,7 +138,30 @@ async function createEscalation(data) {
     }
 }
 
+async function updateEscalation(id, data) {
+    try {
+        const response = await fetch(`${API_URL}/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({ message: 'Unknown server error' }));
+            throw new Error(err.message || `Server error: ${response.status}`);
+        }
+        return await response.json();
+    } catch (error) {
+        if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+            throw new Error('Could not connect to the server. Please ensure the backend is running.');
+        }
+        throw error;
+    }
+}
+
 async function saveEntry() {
+    const editId = document.getElementById('fEditingId').value;
     const form = {
         date: document.getElementById('fDate').value,
         id: document.getElementById('fId').value,
@@ -152,9 +175,13 @@ async function saveEntry() {
     };
 
     try {
-        await createEscalation(form);
-
-        showToast("Data saved successfully", "success");
+        if (editId) {
+            await updateEscalation(editId, form);
+            showToast("Data updated successfully", "success");
+        } else {
+            await createEscalation(form);
+            showToast("Data saved successfully", "success");
+        }
         closeModal();
         document.getElementById('escForm').reset();
 
@@ -186,6 +213,25 @@ async function deleteRow(id) {
             showToast("Error deleting case", "error");
         }
     }
+}
+
+function editRow(id) {
+    const row = appState.data.find(d => d._id === id);
+    if (!row) return;
+
+    document.getElementById('modalTitle').innerText = "Edit Case";
+    document.getElementById('fEditingId').value = row._id;
+    document.getElementById('fDate').value = row.date;
+    document.getElementById('fId').value = row.id;
+    document.getElementById('fBranch').value = row.branch;
+    document.getElementById('fBrand').value = row.brand || "";
+    document.getElementById('fCity').value = row.city || "";
+    document.getElementById('fReason').value = row.reason || "";
+    document.getElementById('fAging').value = row.aging;
+    document.getElementById('fStatus').value = row.status;
+    document.getElementById('fRemark').value = row.remark || "";
+
+    openModal();
 }
 
 function confirmClear() {
@@ -319,10 +365,16 @@ function renderTable() {
             <td>${row.aging} Days</td>
             <td><span class="badge ${badgeClass}">${row.status}</span></td>
             <td>
-                <button onclick="deleteRow('${row._id}')" class="btn-sm" title="Delete Case" 
-                    style="color: var(--danger); border: 1px solid transparent; background: transparent; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; transition: all 0.2s;">
-                    <span style="font-size: 1.2rem; line-height: 1;">&times;</span>
-                </button>
+                <div style="display: flex; gap: 4px;">
+                    <button onclick="editRow('${row._id}')" class="btn-sm" title="Edit Case" 
+                        style="color: var(--primary); border: 1px solid transparent; background: transparent; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; transition: all 0.2s;">
+                        <span style="font-size: 1.1rem; line-height: 1;">✎</span>
+                    </button>
+                    <button onclick="deleteRow('${row._id}')" class="btn-sm" title="Delete Case" 
+                        style="color: var(--danger); border: 1px solid transparent; background: transparent; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; transition: all 0.2s;">
+                        <span style="font-size: 1.2rem; line-height: 1;">&times;</span>
+                    </button>
+                </div>
             </td>
         `;
         tbody.appendChild(tr);
@@ -426,7 +478,17 @@ function updateCharts() {
 
 // Utilities
 function openModal() { document.getElementById('entryModal').classList.add('open'); }
-function closeModal() { document.getElementById('entryModal').classList.remove('open'); }
+function closeModal() {
+    document.getElementById('entryModal').classList.remove('open');
+    document.getElementById('fEditingId').value = "";
+    document.getElementById('modalTitle').innerText = "New Case";
+    document.getElementById('escForm').reset();
+    // Re-set date to today
+    document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
+    if (appState.user && appState.user.role !== "ADMIN") {
+        document.getElementById('fBranch').value = appState.user.role;
+    }
+}
 
 function showToast(msg, type = "info") {
     const cont = document.getElementById('toastContainer');

@@ -38,6 +38,21 @@ app.post('/api/escalations', async (req, res) => {
     }
 });
 
+// Update an escalation
+app.put('/api/escalations/:id', async (req, res) => {
+    try {
+        const updatedEscalation = await Escalation.findByIdAndUpdate(
+            req.params.id,
+            req.body,
+            { new: true, runValidators: true }
+        );
+        if (!updatedEscalation) return res.status(404).json({ message: 'Escalation not found' });
+        res.json(updatedEscalation);
+    } catch (err) {
+        res.status(400).json({ message: err.message });
+    }
+});
+
 // Delete an escalation
 app.delete('/api/escalations/:id', async (req, res) => {
     try {
