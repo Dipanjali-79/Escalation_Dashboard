@@ -244,17 +244,96 @@ function handleImport(input) {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = function (e) {
-        const text = e.target.result;
-        try {
-            processCSV(text);
-            input.value = ''; // Reset input
-        } catch (err) {
-            showToast("Error importing CSV: " + err.message, "error");
-            console.error(err);
+    const fileName = file.name.toLowerCase();
+
+    if (fileName.endsWith('.csv')) {
+        reader.onload = function (e) {
+            const text = e.target.result;
+            try {
+                processCSV(text);
+                input.value = ''; // Reset input
+            } catch (err) {
+                showToast("Error importing CSV: " + err.message, "error");
+                console.error(err);
+            }
+        };
+        reader.readAsText(file);
+    } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+        reader.onload = function (e) {
+            const data = new Uint8Array(e.target.result);
+            try {
+                processExcel(data);
+                input.value = ''; // Reset input
+            } catch (err) {
+                showToast("Error importing Excel: " + err.message, "error");
+                console.error(err);
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    } else {
+        showToast("Unsupported file type. Please upload .csv or .xlsx", "error");
+        input.value = '';
+    }
+}
+
+async function processExcel(data) {
+    try {
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+
+        // Convert to array of objects
+        // Header row is assumed to be the first row
+        const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+        if (rows.length < 2) return showToast("Excel is empty or invalid", "error");
+
+        const keys = ["date", "id", "branch", "brand", "reason", "city", "aging", "status", "remark"];
+        let successCount = 0;
+
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
+            if (!row || row.length === 0) continue;
+
+            const entry = {};
+            keys.forEach((k, idx) => {
+                let val = row[idx];
+                // Handle date conversion if it's an Excel date number
+                if (k === 'date' && typeof val === 'number') {
+                    // Try to format it as a string date YYYY-MM-DD
+                    const date = XLSX.utils.format_cell({ v: val, t: 'd' });
+                    entry[k] = date;
+                } else {
+                    entry[k] = val !== undefined && val !== null ? String(val).trim() : "";
+                }
+            });
+
+            // Validate and Type Convert
+            entry.aging = parseInt(entry.aging) || 0;
+
+            // Permission Check
+            if (appState.user.role !== "ADMIN" && entry.branch !== appState.user.role) {
+                continue; // Skip rows not belonging to user
+            }
+
+            try {
+                await createEscalation(entry);
+                successCount++;
+            } catch (e) {
+                console.error("Failed to import row:", entry, e);
+            }
         }
-    };
-    reader.readAsText(file);
+
+        if (successCount > 0) {
+            showToast(`Imported ${successCount} cases successfully`, "success");
+            loadData(); // This updates table, stats, and charts
+        } else {
+            showToast("No valid rows imported", "warning");
+        }
+    } catch (err) {
+        showToast("Error processing Excel file", "error");
+        console.error(err);
+    }
 }
 
 async function processCSV(csvText) {
