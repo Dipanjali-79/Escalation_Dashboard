@@ -276,6 +276,19 @@ function handleImport(input) {
     }
 }
 
+// Helper for header mapping
+const HEADER_MAP = {
+    "date": "date", "date logged": "date", "logged date": "date",
+    "id": "id", "reference id": "id", "case id": "id", "id": "id",
+    "branch": "branch", "location": "branch", "branch / location": "branch",
+    "brand": "brand", "model": "brand", "brand / model": "brand", "product": "brand",
+    "reason": "reason", "issue": "reason", "primary issue": "reason", "reason": "reason",
+    "city": "city", "region": "city", "location": "city",
+    "aging": "aging", "aging (days)": "aging", "days": "aging",
+    "status": "status", "current status": "status",
+    "remark": "remark", "remarks": "remark", "technician remarks": "remark", "note": "remark"
+};
+
 async function processExcel(data) {
     try {
         const workbook = XLSX.read(data, { type: 'array' });
@@ -288,25 +301,39 @@ async function processExcel(data) {
 
         if (rows.length < 2) return showToast("Excel is empty or invalid", "error");
 
-        const keys = ["date", "id", "branch", "brand", "reason", "city", "aging", "status", "remark"];
+        const fileHeaders = rows[0].map(h => String(h || "").trim().toLowerCase());
+        const colMap = {};
+
+        // Map detected headers to our keys
+        fileHeaders.forEach((h, idx) => {
+            if (HEADER_MAP[h]) colMap[HEADER_MAP[h]] = idx;
+        });
+
         let successCount = 0;
+        const required = ["date", "id", "branch"];
 
         for (let i = 1; i < rows.length; i++) {
             const row = rows[i];
             if (!row || row.length === 0) continue;
 
             const entry = {};
-            keys.forEach((k, idx) => {
-                let val = row[idx];
-                // Handle date conversion if it's an Excel date number
-                if (k === 'date' && typeof val === 'number') {
-                    // Try to format it as a string date YYYY-MM-DD
-                    const date = XLSX.utils.format_cell({ v: val, t: 'd' });
-                    entry[k] = date;
-                } else {
-                    entry[k] = val !== undefined && val !== null ? String(val).trim() : "";
+            Object.keys(HEADER_MAP).forEach(key => {
+                const targetKey = HEADER_MAP[key];
+                if (colMap[targetKey] !== undefined) {
+                    let val = row[colMap[targetKey]];
+                    // Handle date conversion if it's an Excel date number
+                    if (targetKey === 'date' && typeof val === 'number') {
+                        // Try to format it as a string date YYYY-MM-DD
+                        const date = XLSX.utils.format_cell({ v: val, t: 'd' });
+                        entry[targetKey] = date;
+                    } else {
+                        entry[targetKey] = val !== undefined && val !== null ? String(val).trim() : "";
+                    }
                 }
             });
+
+            // Ensure basics
+            if (!entry.date || !entry.id || !entry.branch) continue;
 
             // Validate and Type Convert
             entry.aging = parseInt(entry.aging) || 0;
@@ -328,7 +355,7 @@ async function processExcel(data) {
             showToast(`Imported ${successCount} cases successfully`, "success");
             loadData(); // This updates table, stats, and charts
         } else {
-            showToast("No valid rows imported", "warning");
+            showToast("No valid rows imported or headers mismatch", "warning");
         }
     } catch (err) {
         showToast("Error processing Excel file", "error");
@@ -340,7 +367,12 @@ async function processCSV(csvText) {
     const lines = csvText.split(/\r\n|\n/);
     if (lines.length < 2) return showToast("CSV is empty or invalid", "error");
 
-    const keys = ["date", "id", "branch", "brand", "reason", "city", "aging", "status", "remark"];
+    const fileHeaders = lines[0].split(",").map(h => h.trim().toLowerCase().replace(/^"|"$/g, ''));
+    const colMap = {};
+    fileHeaders.forEach((h, idx) => {
+        if (HEADER_MAP[h]) colMap[HEADER_MAP[h]] = idx;
+    });
+
     let successCount = 0;
 
     for (let i = 1; i < lines.length; i++) {
@@ -358,10 +390,14 @@ async function processCSV(csvText) {
         }
 
         const entry = {};
-        keys.forEach((k, idx) => {
-            entry[k] = cols[idx] ? cols[idx].trim() : "";
+        Object.keys(HEADER_MAP).forEach(key => {
+            const targetKey = HEADER_MAP[key];
+            if (colMap[targetKey] !== undefined) {
+                entry[targetKey] = cols[colMap[targetKey]] ? cols[colMap[targetKey]].trim() : "";
+            }
         });
 
+        if (!entry.date || !entry.id || !entry.branch) continue;
         // Validate and Type Convert
         entry.aging = parseInt(entry.aging) || 0;
 
